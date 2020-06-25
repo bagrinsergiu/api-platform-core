@@ -8,7 +8,7 @@ parameters:
 	symfony:
 		container_xml_path: tests/Fixtures/app/var/cache/test/appAppKernelTestDebugContainer.xml
 		constant_hassers: false
-	autoload_files:
+	bootstrapFiles:
 		- tests/Fixtures/app/AppKernel.php
 	excludes_analyse:
 		- tests/Fixtures/app/var/cache
@@ -28,6 +28,10 @@ parameters:
 			path: src/Identifier/Normalizer/IntegerDenormalizer.php
 
 		# False positives
+		-
+			message: '#Strict comparison using !== between .+ and .+ will always evaluate to false\.#'
+			paths:
+				- src/Bridge/Doctrine/Common/PropertyHelperTrait.php
 		-
 			message: '#Variable \$iri might not be defined\.#'
 			path: src/JsonApi/Serializer/ItemNormalizer.php
@@ -128,3 +132,10 @@ parameters:
 		-
 			message: "#Call to function method_exists\\(\\) with ApiPlatform\\\\Core\\\\JsonApi\\\\Serializer\\\\ItemNormalizer and 'setCircularReferenc…' will always evaluate to false\\.#"
 			path: tests/JsonApi/Serializer/ItemNormalizerTest.php
+
+		# Waiting to be fixed by https://github.com/Roave/BetterReflection/issues/663
+		-
+			message: '#Call to private method getNestedFieldPath\(\) of class ApiPlatform\\Core\\Bridge\\Elasticsearch\\DataProvider\\Filter\\AbstractFilter\.#'
+			paths:
+				- src/Bridge/Elasticsearch/DataProvider/Filter/OrderFilter.php
+				- src/Bridge/Elasticsearch/DataProvider/Filter/AbstractSearchFilter.php

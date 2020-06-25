@@ -56,6 +56,7 @@ use ApiPlatform\Core\Bridge\Elasticsearch\DataProvider\Filter\TermFilter;
 use ApiPlatform\Core\Bridge\Elasticsearch\Metadata\Document\Factory\DocumentMetadataFactoryInterface;
 use ApiPlatform\Core\Bridge\Symfony\Bundle\DependencyInjection\ApiPlatformExtension;
 use ApiPlatform\Core\Bridge\Symfony\Validator\Metadata\Property\Restriction\PropertySchemaRestrictionMetadataInterface;
+use ApiPlatform\Core\Bridge\Symfony\Validator\ValidationGroupsGeneratorInterface;
 use ApiPlatform\Core\DataPersister\DataPersisterInterface;
 use ApiPlatform\Core\DataProvider\CollectionDataProviderInterface;
 use ApiPlatform\Core\DataProvider\ItemDataProviderInterface;
@@ -857,9 +858,11 @@ class ApiPlatformExtensionTest extends TestCase
             'api_platform.http_cache.shared_max_age' => null,
             'api_platform.http_cache.vary' => ['Accept'],
             'api_platform.http_cache.public' => null,
+            'api_platform.http_cache.invalidation.max_header_length' => 7500,
             'api_platform.defaults' => ['attributes' => []],
             'api_platform.enable_entrypoint' => true,
             'api_platform.enable_docs' => true,
+            'api_platform.url_generation_strategy' => 1,
         ];
 
         $pagination = [
@@ -965,6 +968,7 @@ class ApiPlatformExtensionTest extends TestCase
             'api_platform.serializer.group_filter',
             'api_platform.serializer.normalizer.item',
             'api_platform.serializer.property_filter',
+            'api_platform.serializer.uuid_denormalizer',
             'api_platform.serializer_locator',
             'api_platform.subresource_data_provider',
             'api_platform.subresource_operation_factory',
@@ -1026,6 +1030,11 @@ class ApiPlatformExtensionTest extends TestCase
         if (method_exists(ContainerBuilder::class, 'removeBindings')) {
             $containerBuilderProphecy->removeBindings(Argument::type('string'))->will(function () {});
         }
+
+        $containerBuilderProphecy->getDefinition(Argument::type('string'))
+            ->willReturn($this->prophesize(Definition::class)->reveal());
+        $containerBuilderProphecy->getAlias(Argument::type('string'))
+            ->willReturn($this->prophesize(Alias::class)->reveal());
 
         return $containerBuilderProphecy;
     }
@@ -1089,6 +1098,10 @@ class ApiPlatformExtensionTest extends TestCase
         $containerBuilderProphecy->registerForAutoconfiguration(DoctrineOrmAbstractContextAwareFilter::class)
             ->willReturn($this->childDefinitionProphecy)->shouldBeCalledTimes(1);
         $this->childDefinitionProphecy->setBindings(['$requestStack' => null])->shouldBeCalledTimes(1);
+
+        $containerBuilderProphecy->registerForAutoconfiguration(ValidationGroupsGeneratorInterface::class)
+            ->willReturn($this->childDefinitionProphecy)->shouldBeCalledTimes(1);
+        $this->childDefinitionProphecy->addTag('api_platform.validation_groups_generator')->willReturn($this->childDefinitionProphecy)->shouldBeCalledTimes(1);
 
         $containerBuilderProphecy->registerForAutoconfiguration(PropertySchemaRestrictionMetadataInterface::class)
             ->willReturn($this->childDefinitionProphecy)->shouldBeCalledTimes(1);
@@ -1384,6 +1397,12 @@ class ApiPlatformExtensionTest extends TestCase
         $containerBuilderProphecy->getDefinition('api_platform.doctrine.orm.listener.mercure.publish')->willReturn($definitionDummy);
         $containerBuilderProphecy->getDefinition('api_platform.doctrine_mongodb.odm.listener.mercure.publish')->willReturn($definitionDummy);
         $containerBuilderProphecy->getDefinition('api_platform.graphql.subscription.mercure_iri_generator')->willReturn($definitionDummy);
+        $this->childDefinitionProphecy->setPublic(true)->will(function () {});
+
+        $containerBuilderProphecy->getDefinition(Argument::type('string'))
+            ->willReturn($this->prophesize(Definition::class)->reveal());
+        $containerBuilderProphecy->getAlias(Argument::type('string'))
+            ->willReturn($this->prophesize(Alias::class)->reveal());
 
         return $containerBuilderProphecy;
     }

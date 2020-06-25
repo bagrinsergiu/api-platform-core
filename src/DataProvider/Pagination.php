@@ -91,7 +91,13 @@ final class Pagination
             return ($offset = ($context['count'] ?? 0) - $last) < 0 ? 0 : $offset;
         }
 
-        return ($this->getPage($context) - 1) * $limit;
+        $offset = ($this->getPage($context) - 1) * $limit;
+
+        if (!\is_int($offset)) {
+            throw new InvalidArgumentException('Page parameter is too large.');
+        }
+
+        return $offset;
     }
 
     /**
@@ -209,7 +215,7 @@ final class Pagination
             return 'cursor';
         }
 
-        return (string) $resourceMetadata->getGraphqlAttribute($operationName, 'paginationType', 'cursor', true);
+        return (string) $resourceMetadata->getGraphqlAttribute($operationName, 'pagination_type', 'cursor', true);
     }
 
     /**

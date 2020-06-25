@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace ApiPlatform\Core\Bridge\Symfony\Bundle\DependencyInjection;
 
 use ApiPlatform\Core\Api\FilterInterface;
+use ApiPlatform\Core\Api\UrlGeneratorInterface;
 use ApiPlatform\Core\Bridge\Doctrine\MongoDbOdm\Extension\AggregationCollectionExtensionInterface;
 use ApiPlatform\Core\Bridge\Doctrine\MongoDbOdm\Extension\AggregationItemExtensionInterface;
 use ApiPlatform\Core\Bridge\Doctrine\MongoDbOdm\Filter\AbstractFilter as DoctrineMongoDbOdmAbstractFilter;
@@ -24,6 +25,7 @@ use ApiPlatform\Core\Bridge\Doctrine\Orm\Extension\QueryItemExtensionInterface;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\AbstractContextAwareFilter as DoctrineOrmAbstractContextAwareFilter;
 use ApiPlatform\Core\Bridge\Elasticsearch\DataProvider\Extension\RequestBodySearchCollectionExtensionInterface;
 use ApiPlatform\Core\Bridge\Symfony\Validator\Metadata\Property\Restriction\PropertySchemaRestrictionMetadataInterface;
+use ApiPlatform\Core\Bridge\Symfony\Validator\ValidationGroupsGeneratorInterface;
 use ApiPlatform\Core\DataPersister\DataPersisterInterface;
 use ApiPlatform\Core\DataProvider\CollectionDataProviderInterface;
 use ApiPlatform\Core\DataProvider\ItemDataProviderInterface;
@@ -42,6 +44,7 @@ use Symfony\Component\Config\FileLocator;
 use Symfony\Component\Config\Resource\DirectoryResource;
 use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Exception\RuntimeException;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\XmlFileLoader;
@@ -146,6 +149,19 @@ final class ApiPlatformExtension extends Extension implements PrependExtensionIn
         $loader->load('data_provider.xml');
         $loader->load('filter.xml');
 
+        $container->getDefinition('api_platform.operation_method_resolver')
+            ->setDeprecated(...$this->buildDeprecationArgs('2.5', 'The "%service_id%" service is deprecated since API Platform 2.5.'));
+        $container->getDefinition('api_platform.formats_provider')
+            ->setDeprecated(...$this->buildDeprecationArgs('2.5', 'The "%service_id%" service is deprecated since API Platform 2.5.'));
+        $container->getAlias('ApiPlatform\Core\Api\OperationAwareFormatsProviderInterface')
+            ->setDeprecated(...$this->buildDeprecationArgs('2.5', 'The "%alias_id%" alias is deprecated since API Platform 2.5.'));
+        $container->getDefinition('api_platform.operation_path_resolver.underscore')
+            ->setDeprecated(...$this->buildDeprecationArgs('2.1', 'The "%service_id%" service is deprecated since API Platform 2.1 and will be removed in 3.0. Use "api_platform.path_segment_name_generator.underscore" instead.'));
+        $container->getDefinition('api_platform.operation_path_resolver.dash')
+            ->setDeprecated(...$this->buildDeprecationArgs('2.1', 'The "%service_id%" service is deprecated since API Platform 2.1 and will be removed in 3.0. Use "api_platform.path_segment_name_generator.dash" instead.'));
+        $container->getDefinition('api_platform.filters')
+            ->setDeprecated(...$this->buildDeprecationArgs('2.1', 'The "%service_id%" service is deprecated since 2.1 and will be removed in 3.0. Use the "api_platform.filter_locator" service instead.'));
+
         if (class_exists(Uuid::class)) {
             $loader->load('ramsey_uuid.xml');
         }
@@ -156,6 +172,7 @@ final class ApiPlatformExtension extends Extension implements PrependExtensionIn
         $container->setParameter('api_platform.description', $config['description']);
         $container->setParameter('api_platform.version', $config['version']);
         $container->setParameter('api_platform.show_webby', $config['show_webby']);
+        $container->setParameter('api_platform.url_generation_strategy', $config['defaults']['url_generation_strategy'] ?? UrlGeneratorInterface::ABS_PATH);
         $container->setParameter('api_platform.exception_to_status', $config['exception_to_status']);
         $container->setParameter('api_platform.formats', $formats);
         $container->setParameter('api_platform.patch_formats', $patchFormats);
@@ -166,25 +183,26 @@ final class ApiPlatformExtension extends Extension implements PrependExtensionIn
         $container->setParameter('api_platform.eager_loading.fetch_partial', $config['eager_loading']['fetch_partial']);
         $container->setParameter('api_platform.eager_loading.force_eager', $config['eager_loading']['force_eager']);
         $container->setParameter('api_platform.collection.exists_parameter_name', $config['collection']['exists_parameter_name']);
-        $container->setParameter('api_platform.collection.order', $config['collection']['order']);
+        $container->setParameter('api_platform.collection.order', $config['defaults']['order'] ?? $config['collection']['order']);
         $container->setParameter('api_platform.collection.order_parameter_name', $config['collection']['order_parameter_name']);
-        $container->setParameter('api_platform.collection.pagination.enabled', $this->isConfigEnabled($container, $config['collection']['pagination']));
-        $container->setParameter('api_platform.collection.pagination.partial', $config['collection']['pagination']['partial']);
-        $container->setParameter('api_platform.collection.pagination.client_enabled', $config['collection']['pagination']['client_enabled']);
-        $container->setParameter('api_platform.collection.pagination.client_items_per_page', $config['collection']['pagination']['client_items_per_page']);
-        $container->setParameter('api_platform.collection.pagination.client_partial', $config['collection']['pagination']['client_partial']);
-        $container->setParameter('api_platform.collection.pagination.items_per_page', $config['collection']['pagination']['items_per_page']);
-        $container->setParameter('api_platform.collection.pagination.maximum_items_per_page', $config['collection']['pagination']['maximum_items_per_page']);
-        $container->setParameter('api_platform.collection.pagination.page_parameter_name', $config['collection']['pagination']['page_parameter_name']);
-        $container->setParameter('api_platform.collection.pagination.enabled_parameter_name', $config['collection']['pagination']['enabled_parameter_name']);
-        $container->setParameter('api_platform.collection.pagination.items_per_page_parameter_name', $config['collection']['pagination']['items_per_page_parameter_name']);
-        $container->setParameter('api_platform.collection.pagination.partial_parameter_name', $config['collection']['pagination']['partial_parameter_name']);
-        $container->setParameter('api_platform.collection.pagination', $config['collection']['pagination']);
-        $container->setParameter('api_platform.http_cache.etag', $config['http_cache']['etag']);
-        $container->setParameter('api_platform.http_cache.max_age', $config['http_cache']['max_age']);
-        $container->setParameter('api_platform.http_cache.shared_max_age', $config['http_cache']['shared_max_age']);
-        $container->setParameter('api_platform.http_cache.vary', $config['http_cache']['vary']);
-        $container->setParameter('api_platform.http_cache.public', $config['http_cache']['public']);
+        $container->setParameter('api_platform.collection.pagination.enabled', $this->isConfigEnabled($container, $config['defaults']['pagination_enabled'] ?? $config['collection']['pagination']));
+        $container->setParameter('api_platform.collection.pagination.partial', $config['defaults']['pagination_partial'] ?? $config['collection']['pagination']['partial']);
+        $container->setParameter('api_platform.collection.pagination.client_enabled', $config['defaults']['pagination_client_enabled'] ?? $config['collection']['pagination']['client_enabled']);
+        $container->setParameter('api_platform.collection.pagination.client_items_per_page', $config['defaults']['pagination_client_items_per_page'] ?? $config['collection']['pagination']['client_items_per_page']);
+        $container->setParameter('api_platform.collection.pagination.client_partial', $config['defaults']['pagination_client_partial'] ?? $config['collection']['pagination']['client_partial']);
+        $container->setParameter('api_platform.collection.pagination.items_per_page', $config['defaults']['pagination_items_per_page'] ?? $config['collection']['pagination']['items_per_page']);
+        $container->setParameter('api_platform.collection.pagination.maximum_items_per_page', $config['defaults']['pagination_maximum_items_per_page'] ?? $config['collection']['pagination']['maximum_items_per_page']);
+        $container->setParameter('api_platform.collection.pagination.page_parameter_name', $config['defaults']['pagination_page_parameter_name'] ?? $config['collection']['pagination']['page_parameter_name']);
+        $container->setParameter('api_platform.collection.pagination.enabled_parameter_name', $config['defaults']['pagination_enabled_parameter_name'] ?? $config['collection']['pagination']['enabled_parameter_name']);
+        $container->setParameter('api_platform.collection.pagination.items_per_page_parameter_name', $config['defaults']['pagination_items_per_page_parameter_name'] ?? $config['collection']['pagination']['items_per_page_parameter_name']);
+        $container->setParameter('api_platform.collection.pagination.partial_parameter_name', $config['defaults']['pagination_partial_parameter_name'] ?? $config['collection']['pagination']['partial_parameter_name']);
+        $container->setParameter('api_platform.collection.pagination', $this->getPaginationDefaults($config['defaults'] ?? [], $config['collection']['pagination']));
+        $container->setParameter('api_platform.http_cache.etag', $config['defaults']['cache_headers']['etag'] ?? $config['http_cache']['etag']);
+        $container->setParameter('api_platform.http_cache.max_age', $config['defaults']['cache_headers']['max_age'] ?? $config['http_cache']['max_age']);
+        $container->setParameter('api_platform.http_cache.shared_max_age', $config['defaults']['cache_headers']['shared_max_age'] ?? $config['http_cache']['shared_max_age']);
+        $container->setParameter('api_platform.http_cache.vary', $config['defaults']['cache_headers']['vary'] ?? $config['http_cache']['vary']);
+        $container->setParameter('api_platform.http_cache.public', $config['defaults']['cache_headers']['public'] ?? $config['http_cache']['public']);
+        $container->setParameter('api_platform.http_cache.invalidation.max_header_length', $config['defaults']['cache_headers']['invalidation']['max_header_length'] ?? $config['http_cache']['invalidation']['max_header_length']);
 
         $container->setAlias('api_platform.operation_path_resolver.default', $config['default_operation_path_resolver']);
         $container->setAlias('api_platform.path_segment_name_generator', $config['path_segment_name_generator']);
@@ -193,6 +211,24 @@ final class ApiPlatformExtension extends Extension implements PrependExtensionIn
             $container->setAlias('api_platform.name_converter', $config['name_converter']);
         }
         $container->setParameter('api_platform.defaults', $this->normalizeDefaults($config['defaults'] ?? []));
+    }
+
+    /**
+     * This method will be removed in 3.0 when "defaults" will be the regular configuration path for the pagination.
+     */
+    private function getPaginationDefaults(array $defaults, array $collectionPaginationConfiguration): array
+    {
+        $paginationOptions = [];
+
+        foreach ($defaults as $key => $value) {
+            if (0 !== strpos($key, 'pagination_')) {
+                continue;
+            }
+
+            $paginationOptions[str_replace('pagination_', '', $key)] = $value;
+        }
+
+        return array_merge($collectionPaginationConfiguration, $paginationOptions);
     }
 
     private function normalizeDefaults(array $defaults): array
@@ -440,6 +476,11 @@ final class ApiPlatformExtension extends Extension implements PrependExtensionIn
 
         if (isset($bundles['NelmioApiDocBundle']) && $config['enable_nelmio_api_doc']) {
             $loader->load('nelmio_api_doc.xml');
+
+            $container->getDefinition('api_platform.nelmio_api_doc.annotations_provider')
+                ->setDeprecated(...$this->buildDeprecationArgs('2.2', 'The "%service_id%" service is deprecated since API Platform 2.2 and will be removed in 3.0. NelmioApiDocBundle 3 has native support for API Platform.'));
+            $container->getDefinition('api_platform.nelmio_api_doc.parser')
+                ->setDeprecated(...$this->buildDeprecationArgs('2.2', 'The "%service_id%" service is deprecated since API Platform 2.2 and will be removed in 3.0. NelmioApiDocBundle 3 has native support for API Platform.'));
         }
     }
 
@@ -531,7 +572,8 @@ final class ApiPlatformExtension extends Extension implements PrependExtensionIn
             $definitions[] = $definition;
         }
 
-        $container->getDefinition('api_platform.http_cache.purger.varnish')->addArgument($definitions);
+        $container->getDefinition('api_platform.http_cache.purger.varnish')->setArguments([$definitions,
+            $config['http_cache']['invalidation']['max_header_length'], ]);
         $container->setAlias('api_platform.http_cache.purger', 'api_platform.http_cache.purger.varnish');
     }
 
@@ -554,8 +596,12 @@ final class ApiPlatformExtension extends Extension implements PrependExtensionIn
     {
         if (interface_exists(ValidatorInterface::class)) {
             $loader->load('validator.xml');
+
+            $container->registerForAutoconfiguration(ValidationGroupsGeneratorInterface::class)
+                ->addTag('api_platform.validation_groups_generator')
+                ->setPublic(true); // this line should be removed in 3.0
             $container->registerForAutoconfiguration(PropertySchemaRestrictionMetadataInterface::class)
-                      ->addTag('api_platform.metadata.property_schema_restriction');
+                ->addTag('api_platform.metadata.property_schema_restriction');
         }
 
         if (!$config['validator']) {
@@ -642,5 +688,12 @@ final class ApiPlatformExtension extends Extension implements PrependExtensionIn
         if (isset($bundles['SecurityBundle'])) {
             $loader->load('security.xml');
         }
+    }
+
+    private function buildDeprecationArgs(string $version, string $message): array
+    {
+        return method_exists(Definition::class, 'getDeprecation')
+            ? ['api-platform/core', $version, $message]
+            : [true, $message];
     }
 }
