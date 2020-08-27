@@ -31,6 +31,7 @@ use ApiPlatform\Core\DataProvider\CollectionDataProviderInterface;
 use ApiPlatform\Core\DataProvider\ItemDataProviderInterface;
 use ApiPlatform\Core\DataProvider\SubresourceDataProviderInterface;
 use ApiPlatform\Core\DataTransformer\DataTransformerInterface;
+use ApiPlatform\Core\GraphQl\Error\ErrorHandlerInterface;
 use ApiPlatform\Core\GraphQl\Resolver\MutationResolverInterface;
 use ApiPlatform\Core\GraphQl\Resolver\QueryCollectionResolverInterface;
 use ApiPlatform\Core\GraphQl\Resolver\QueryItemResolverInterface;
@@ -364,6 +365,7 @@ final class ApiPlatformExtension extends Extension implements PrependExtensionIn
         $container->setParameter('api_platform.oauth.flow', $config['oauth']['flow']);
         $container->setParameter('api_platform.oauth.tokenUrl', $config['oauth']['tokenUrl']);
         $container->setParameter('api_platform.oauth.authorizationUrl', $config['oauth']['authorizationUrl']);
+        $container->setParameter('api_platform.oauth.refreshUrl', $config['oauth']['refreshUrl']);
         $container->setParameter('api_platform.oauth.scopes', $config['oauth']['scopes']);
     }
 
@@ -380,6 +382,7 @@ final class ApiPlatformExtension extends Extension implements PrependExtensionIn
 
         $loader->load('json_schema.xml');
         $loader->load('swagger.xml');
+        $loader->load('openapi.xml');
         $loader->load('swagger-ui.xml');
 
         if (!$config['enable_swagger_ui'] && !$config['enable_re_doc']) {
@@ -463,6 +466,8 @@ final class ApiPlatformExtension extends Extension implements PrependExtensionIn
             ->addTag('api_platform.graphql.mutation_resolver');
         $container->registerForAutoconfiguration(GraphQlTypeInterface::class)
             ->addTag('api_platform.graphql.type');
+        $container->registerForAutoconfiguration(ErrorHandlerInterface::class)
+            ->addTag('api_platform.graphql.error_handler');
     }
 
     private function registerLegacyBundlesConfiguration(ContainerBuilder $container, array $config, XmlFileLoader $loader): void
