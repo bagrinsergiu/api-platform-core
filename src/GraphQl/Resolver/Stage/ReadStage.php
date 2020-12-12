@@ -131,7 +131,7 @@ final class ReadStage implements ReadStageInterface
 
         foreach ($filters as $name => $value) {
             if (\is_array($value)) {
-                if (strpos($name, '_list')) {
+                if (\is_string($name) && strpos($name, '_list')) {
                     $name = substr($name, 0, \strlen($name) - \strlen('_list'));
                 }
                 $filters[$name] = $this->getNormalizedFilters($value);
