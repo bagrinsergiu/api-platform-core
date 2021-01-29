@@ -75,7 +75,7 @@ final class OrderExtension implements ContextAwareQueryCollectionExtensionInterf
             }
         }
 
-        if (null !== $this->order) {
+        if (empty($queryBuilder->getDQLPart('orderBy')) && null !== $this->order) {
             foreach ($identifiers as $identifier) {
                 $queryBuilder->addOrderBy("{$rootAlias}.{$identifier}", $this->order);
             }
