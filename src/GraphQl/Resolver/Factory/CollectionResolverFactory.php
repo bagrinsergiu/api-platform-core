@@ -73,6 +73,13 @@ final class CollectionResolverFactory implements ResolverFactoryInterface
             $operationName = $operationName ?? 'collection_query';
             $resolverContext = ['source' => $source, 'args' => $args, 'info' => $info, 'is_collection' => true, 'is_mutation' => false, 'is_subscription' => false];
 
+            // https://github.com/bagrinsergiu/brizy-api/issues/255
+            ($this->securityStage)($resourceClass, $operationName, $resolverContext + [
+                'extra_variables' => [
+                    //'object' => $collection,
+                ],
+            ]);
+
             $collection = ($this->readStage)($resourceClass, $rootClass, $operationName, $resolverContext);
             if (!is_iterable($collection)) {
                 throw new \LogicException('Collection from read stage should be iterable.');
@@ -87,11 +94,6 @@ final class CollectionResolverFactory implements ResolverFactoryInterface
                 $collection = $queryResolver($collection, $resolverContext);
             }
 
-            ($this->securityStage)($resourceClass, $operationName, $resolverContext + [
-                'extra_variables' => [
-                    'object' => $collection,
-                ],
-            ]);
             ($this->securityPostDenormalizeStage)($resourceClass, $operationName, $resolverContext + [
                 'extra_variables' => [
                     'object' => $collection,
