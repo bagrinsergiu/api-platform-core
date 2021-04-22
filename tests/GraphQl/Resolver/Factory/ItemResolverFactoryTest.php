@@ -134,6 +134,15 @@ class ItemResolverFactoryTest extends TestCase
         ($this->itemResolverFactory)($resourceClass, $rootClass, $operationName)($source, $args, null, $info);
     }
 
+    public function testResolveNestedNullValue(): void
+    {
+        $source = ['nestedNullValue' => null];
+        $info = $this->prophesize(ResolveInfo::class)->reveal();
+        $info->fieldName = 'nestedNullValue';
+
+        $this->assertNull(($this->itemResolverFactory)('resourceClass')($source, [], null, $info));
+    }
+
     public function testResolveNoResourceNoItem(): void
     {
         $resourceClass = null;
