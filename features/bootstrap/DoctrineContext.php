@@ -73,6 +73,7 @@ use ApiPlatform\Core\Tests\Fixtures\TestBundle\Document\Taxon as TaxonDocument;
 use ApiPlatform\Core\Tests\Fixtures\TestBundle\Document\ThirdLevel as ThirdLevelDocument;
 use ApiPlatform\Core\Tests\Fixtures\TestBundle\Document\UrlEncodedId as UrlEncodedIdDocument;
 use ApiPlatform\Core\Tests\Fixtures\TestBundle\Document\User as UserDocument;
+use ApiPlatform\Core\Tests\Fixtures\TestBundle\Document\WithJsonDummy as WithJsonDummyDocument;
 use ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity\AbsoluteUrlDummy;
 use ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity\AbsoluteUrlRelationDummy;
 use ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity\Address;
@@ -141,6 +142,7 @@ use ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity\ThirdLevel;
 use ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity\UrlEncodedId;
 use ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity\User;
 use ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity\UuidIdentifierDummy;
+use ApiPlatform\Core\Tests\Fixtures\TestBundle\Entity\WithJsonDummy;
 use Behat\Behat\Context\Context;
 use Behat\Gherkin\Node\PyStringNode;
 use Doctrine\Common\Persistence\ManagerRegistry;
@@ -518,6 +520,21 @@ final class DoctrineContext implements Context
             $dummy->setAlias('Alias #'.($nb - $i));
             $dummy->setJsonData(['foo' => ['bar', 'baz'], 'bar' => 5]);
             $dummy->setArrayData(['foo', 'bar', 'baz']);
+
+            $this->manager->persist($dummy);
+        }
+
+        $this->manager->flush();
+    }
+
+    /**
+     * @Given there are :nb dummy with null JSON objects
+     */
+    public function thereAreDummyWithNullJsonObjects(int $nb)
+    {
+        for ($i = 1; $i <= $nb; ++$i) {
+            $dummy = $this->buildWithJsonDummy();
+            $dummy->json = null;
 
             $this->manager->persist($dummy);
         }
@@ -2005,5 +2022,13 @@ final class DoctrineContext implements Context
     private function buildNetworkPathRelationDummy()
     {
         return $this->isOrm() ? new NetworkPathRelationDummy() : new NetworkPathRelationDummyDocument();
+    }
+
+    /**
+     * @return WithJsonDummy|WithJsonDummyDocument
+     */
+    private function buildWithJsonDummy()
+    {
+        return $this->isOrm() ? new WithJsonDummy() : new WithJsonDummyDocument();
     }
 }
